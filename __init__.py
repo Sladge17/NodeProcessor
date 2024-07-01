@@ -21,12 +21,31 @@ class MESH_OT_node_searcher(bpy.types.Operator):
 
 
 
+class VIEW3D_PT_node_searcher(bpy.types.Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "MaterialTools"
+    bl_label = "NodeSearcher"
+
+
+    def draw(self, context):
+        column = self.layout.column(align=True)
+        column.operator(
+            'material.node_searcher',
+            text="Execute",
+        )
+        column.scale_y = 1.4
+
+
+
 def register():
     bpy.utils.register_class(MESH_OT_node_searcher)
+    bpy.utils.register_class(VIEW3D_PT_node_searcher)
 
 
 
 def unregister():
+    bpy.utils.register_class(VIEW3D_PT_node_searcher)
     bpy.utils.unregister_class(MESH_OT_node_searcher)
 
 
