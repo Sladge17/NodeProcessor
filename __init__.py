@@ -160,7 +160,6 @@ class MESH_OT_node_processor(bpy.types.Operator):
         node_origins = self._get_node_origins(materials)
         self._shift_useless_nodes(useless_nodes, node_origins)
         self._set_node_attribute(useless_nodes, node_origins)
-        self._set_frame(node_origins)
         return {'FINISHED'}
 
 
