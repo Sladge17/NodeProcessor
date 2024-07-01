@@ -2,6 +2,13 @@ import bpy
 
 
 
+class UselessNode:
+    def __init__(self, material, node):
+        self.material = material
+        self.node = node
+
+
+
 class MESH_OT_node_searcher(bpy.types.Operator):
     """Search useless nodes"""
     bl_idname = "material.node_searcher"
@@ -36,8 +43,8 @@ class MESH_OT_node_searcher(bpy.types.Operator):
         return node_useful
     
     
-    def _get_useless_nodes(self, matetials:list) -> dict:
-        useless_nodes = {}
+    def _get_useless_nodes(self, matetials:list) -> list:
+        useless_nodes = []
         for material in matetials:
             for node in material.node_tree.nodes:
                 if node.name == 'Material Output':
@@ -46,23 +53,19 @@ class MESH_OT_node_searcher(bpy.types.Operator):
                 if self._is_useful_node(node):
                     continue
 
-                if useless_nodes.get(material.name):
-                    useless_nodes[material.name].append(node)
-                else:
-                    useless_nodes[material.name] = [node]
+                useless_nodes.append(UselessNode(material, node))
         
         return useless_nodes
     
 
     def _log_useless_nodes(self, useless_nodes:dict) -> None:
-        for material in useless_nodes:
-            for node in useless_nodes[material]:
-                print(f"NODE: {node.name} of TYPE: {node.type} for MATERIAL: {material}")
+        for useless_node in useless_nodes:
+            print(f"NODE: {useless_node.node.name} of TYPE: {useless_node.node.type} for MATERIAL: {useless_node.material.name}")
 
 
     def execute(self, context):
         useless_nodes = self._get_useless_nodes(self._get_materials())
-        self._log_useless_nodes(useless_nodes) 
+        self._log_useless_nodes(useless_nodes)
         return {'FINISHED'}
 
 
