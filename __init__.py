@@ -17,11 +17,26 @@ class MESH_OT_node_searcher(bpy.types.Operator):
 
     def execute(self, context):
         for material in bpy.data.materials:
-            if not material.name == 'Dots Stroke':
-                print(f"MAT: {material.name}")
-                for node in material.node_tree.nodes:
-                    print(f"\tNODE: {node.name}")
+            if material.name == 'Dots Stroke':
                 continue
+            
+            print(f"MAT: {material.name}")
+                
+            for node in material.node_tree.nodes:
+                node_useful = False
+                if node.name == 'Material Output':
+                    continue
+                
+                for output in node.outputs:
+                    if output.is_linked:
+                        node_useful = True
+                        break
+
+                if node_useful:
+                    continue
+
+                print(f"\tNODE: {node.name}")
+
         print()
         return {'FINISHED'}
 
