@@ -10,10 +10,10 @@
 
 # Пример использования
 Иерархия материала до применения аддона
-![alt text](https://github.com/Sladge17/NodeProcessor/Sceenshots/before.png)
+![alt text](https://github.com/Sladge17/NodeProcessor/blob/master/Sceenshots/before.png)
 
 Иерархия материала после применения аддона
-![alt text](https://github.com/Sladge17/NodeProcessor/Sceenshots/after.png)
+![alt text](https://github.com/Sladge17/NodeProcessor/blob/master/Sceenshots/after.png)
 
 # Техническая аннотация
 Аддон NodeProcessor разработан и протестирован с использованием ОС Ubuntu 20.04 для Blender 3.6
