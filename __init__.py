@@ -15,29 +15,54 @@ class MESH_OT_node_searcher(bpy.types.Operator):
         return True
 
 
-    def execute(self, context):
+    def _get_materials(self):
+        materials = []
         for material in bpy.data.materials:
             if material.name == 'Dots Stroke':
                 continue
             
-            print(f"MAT: {material.name}")
-                
+            materials.append(material)
+
+        return materials
+        
+    
+    def _is_useful_node(self, node) -> bool:
+        node_useful = False
+        for output in node.outputs:
+            if output.is_linked:
+                node_useful = True
+                break
+
+        return node_useful
+    
+    
+    def _get_useless_nodes(self, matetials:list) -> dict:
+        useless_nodes = {}
+        for material in matetials:
             for node in material.node_tree.nodes:
-                node_useful = False
                 if node.name == 'Material Output':
                     continue
                 
-                for output in node.outputs:
-                    if output.is_linked:
-                        node_useful = True
-                        break
-
-                if node_useful:
+                if self._is_useful_node(node):
                     continue
 
-                print(f"\tNODE: {node.name}")
+                if useless_nodes.get(material.name):
+                    useless_nodes[material.name].append(node)
+                else:
+                    useless_nodes[material.name] = [node]
+        
+        return useless_nodes
+    
 
-        print()
+    def _log_useless_nodes(self, useless_nodes:dict) -> None:
+        for material in useless_nodes:
+            for node in useless_nodes[material]:
+                print(f"NODE: {node.name} of TYPE: {node.type} for MATERIAL: {material}")
+
+
+    def execute(self, context):
+        useless_nodes = self._get_useless_nodes(self._get_materials())
+        self._log_useless_nodes(useless_nodes) 
         return {'FINISHED'}
 
 
