@@ -70,11 +70,7 @@ class MESH_OT_node_searcher(bpy.types.Operator):
             print(f"NODE: {useless_node.node.name} of TYPE: {useless_node.node.type} for MATERIAL: {useless_node.material.name}")
 
 
-    def execute(self, context):
-        useless_nodes = self._get_useless_nodes(self._get_materials())
-        self._log_useless_nodes(useless_nodes)
-
-
+    def _set_node_attribute(self, useless_nodes:dict) -> None:
         for useless_node in useless_nodes:
             if not len(useless_node.node.inputs):
                 continue
@@ -91,10 +87,13 @@ class MESH_OT_node_searcher(bpy.types.Operator):
                     node_attribute.outputs['Alpha'],
                     node_input,
                 )
-                cursor[1] += CursorOffset.y.value
-
-
-
+                cursor[1] += CursorOffset.y.value        
+    
+    
+    def execute(self, context):
+        useless_nodes = self._get_useless_nodes(self._get_materials())
+        self._log_useless_nodes(useless_nodes)
+        self._set_node_attribute(useless_nodes)
         return {'FINISHED'}
 
 
