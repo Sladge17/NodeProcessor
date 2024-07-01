@@ -101,7 +101,7 @@ class MESH_OT_node_processor(bpy.types.Operator):
             node_origins[useless_node.material.name] = origin
 
 
-    def _set_node_attribute(self, useless_nodes:dict) -> dict:
+    def _set_node_attribute(self, useless_nodes:dict):
         for useless_node in useless_nodes:
             if not len(useless_node.node.inputs):
                 continue
@@ -119,11 +119,6 @@ class MESH_OT_node_processor(bpy.types.Operator):
                     node_input,
                 )
                 origin[1] += Offsets.origin_attr_y.value
-
-        return (
-            node_attribute.location[0] - node_attribute.width,
-            node_attribute.location[1] - node_attribute.height
-        )
     
     
     def execute(self, context):
