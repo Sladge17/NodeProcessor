@@ -18,11 +18,11 @@ class UselessNode:
 
 
 
-class MESH_OT_node_searcher(bpy.types.Operator):
-    """Search useless nodes"""
-    bl_idname = "material.node_searcher"
-    bl_label = "Node searcher"
-    bl_description = "Search useless nodes"
+class MESH_OT_node_processor(bpy.types.Operator):
+    """Processing useless nodes"""
+    bl_idname = "material.node_processor"
+    bl_label = "Node Processor"
+    bl_description = "Processing useless nodes"
     bl_options = {'UNDO'}
 
 
@@ -134,18 +134,18 @@ class MESH_OT_node_searcher(bpy.types.Operator):
 
 
 
-class VIEW3D_PT_node_searcher(bpy.types.Panel):
+class VIEW3D_PT_node_processor(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "MaterialTools"
-    bl_label = "NodeSearcher"
+    bl_label = "NodeProcessor"
 
 
     def draw(self, context):
         column = self.layout.column(align=True)
         column.operator(
-            'material.node_searcher',
-            text="Print useless nodes",
+            'material.node_processor',
+            text="Process useless nodes",
             icon='FILE_TEXT',
         )
         column.scale_y = 1.4
@@ -153,25 +153,25 @@ class VIEW3D_PT_node_searcher(bpy.types.Panel):
 
 
 def register():
-    bpy.utils.register_class(MESH_OT_node_searcher)
-    bpy.utils.register_class(VIEW3D_PT_node_searcher)
+    bpy.utils.register_class(MESH_OT_node_processor)
+    bpy.utils.register_class(VIEW3D_PT_node_processor)
 
 
 
 def unregister():
-    bpy.utils.register_class(VIEW3D_PT_node_searcher)
-    bpy.utils.unregister_class(MESH_OT_node_searcher)
+    bpy.utils.register_class(VIEW3D_PT_node_processor)
+    bpy.utils.unregister_class(MESH_OT_node_processor)
 
 
 
 bl_info = {
-    "name": "Node Searcher",
+    "name": "Node Processor",
     "author": "Sosov Maxim",
     "version": (1, 0),
     "blender": (3, 6, 0),
     "category": "",
-    "location": "",
-    "description": "",
+    "location": "VIEW_3D > UI > MaterialTools > NodeProcessor",
+    "description": "Processing useless nodes",
     "warning": "",
     "doc_url": "",
     "wiki_url": "",
