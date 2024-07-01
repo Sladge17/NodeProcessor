@@ -78,7 +78,8 @@ class VIEW3D_PT_node_searcher(bpy.types.Panel):
         column = self.layout.column(align=True)
         column.operator(
             'material.node_searcher',
-            text="Execute",
+            text="Print useless nodes",
+            icon='FILE_TEXT',
         )
         column.scale_y = 1.4
 
