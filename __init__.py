@@ -93,39 +93,46 @@ class MESH_OT_node_processor(bpy.types.Operator):
                 origin[0] += Offsets.origin_shift_first.value
                 origin[1] += Offsets.origin_shift_first.value
                 useless_node.node.location = origin
-                node_origins[useless_node.material.name] = origin
                 is_first = False
                 continue
 
-            origin = node_origins[useless_node.material.name]
             origin[1] += Offsets.origin_shift_y.value
             useless_node.node.location = origin
             node_origins[useless_node.material.name] = origin
 
 
-    def _set_node_attribute(self, useless_nodes:dict) -> None:
+    def _set_node_attribute(self, useless_nodes:dict) -> dict:
         for useless_node in useless_nodes:
             if not len(useless_node.node.inputs):
                 continue
 
-            cursor = useless_node.node.location.copy()
-            cursor[0] += Offsets.origin_attr_x.value
+            origin = useless_node.node.location.copy()
+            origin[0] += Offsets.origin_attr_x.value
 
             for node_input in useless_node.node.inputs:
                 node_attribute =\
                     useless_node.material.node_tree.nodes.new(type='ShaderNodeAttribute')
-                node_attribute.location = cursor
+                node_attribute.location = origin
 
                 useless_node.material.node_tree.links.new(
                     node_attribute.outputs['Alpha'],
                     node_input,
                 )
-                cursor[1] += Offsets.origin_attr_y.value        
+                origin[1] += Offsets.origin_attr_y.value
+
+        return (
+            node_attribute.location[0] - node_attribute.width,
+            node_attribute.location[1] - node_attribute.height
+        )
     
     
     def execute(self, context):
         materials = self._get_materials()
         useless_nodes = self._get_useless_nodes(materials)
+        if not useless_nodes:
+            print("MESSAGE: Useless nodes not exist")
+            return {'FINISHED'}
+        
         self._log_useless_nodes(useless_nodes)
         node_origins = self._get_node_origins(materials)
         self._shift_useless_nodes(useless_nodes, node_origins)
