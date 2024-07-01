@@ -78,7 +78,7 @@ class MESH_OT_node_processor(bpy.types.Operator):
             origin = [float('inf'), float('inf')]
             for node in material.node_tree.nodes:
                 origin[0] = min(origin[0], node.location[0])
-                origin[1] = min(origin[1], node.location[1])
+                origin[1] = min(origin[1], node.location[1] - node.height)
             
             nodes_origin[material.name] = origin
 
@@ -89,21 +89,33 @@ class MESH_OT_node_processor(bpy.types.Operator):
         is_first = True
         for useless_node in useless_nodes:
             if is_first:
-                origin = node_origins[useless_node.material.name]
+                origin = node_origins[useless_node.material.name].copy()
                 origin[0] += Offsets.origin_shift_first.value
                 origin[1] += Offsets.origin_shift_first.value
-                useless_node.node.location = origin
+                useless_node.node.location = (
+                    origin[0] - useless_node.node.width,
+                    origin[1]
+                )
                 is_first = False
                 continue
 
             origin[1] += Offsets.origin_shift_y.value
-            useless_node.node.location = origin
-            node_origins[useless_node.material.name] = origin
+            useless_node.node.location = (
+                origin[0] - useless_node.node.width,
+                origin[1]
+            )
 
 
-    def _set_node_attribute(self, useless_nodes:dict):
+    def _set_node_attribute(self, useless_nodes:list, node_origins: dict) -> None:
+        for origin in node_origins:
+            node_origins[origin] += [0, 0]
+
         for useless_node in useless_nodes:
             if not len(useless_node.node.inputs):
+                node_origins[useless_node.material.name][2] =\
+                    useless_node.node.location[0] - useless_node.node.width
+                node_origins[useless_node.material.name][3] =\
+                    useless_node.node.location[1] - useless_node.node.height
                 continue
 
             origin = useless_node.node.location.copy()
@@ -118,7 +130,23 @@ class MESH_OT_node_processor(bpy.types.Operator):
                     node_attribute.outputs['Alpha'],
                     node_input,
                 )
+                node_origins[useless_node.material.name][2] =\
+                    node_attribute.location[0] - node_attribute.width
+                node_origins[useless_node.material.name][3] =\
+                    node_attribute.location[1] - node_attribute.height
                 origin[1] += Offsets.origin_attr_y.value
+    
+    
+    def _set_frame(self, node_origins: dict) -> None:
+        for origin in node_origins:
+            if not node_origins[origin][2]:
+                continue
+
+            frame = bpy.data.materials[origin].node_tree.nodes.new(type='NodeFrame')
+            frame.location[0] = node_origins[origin][2]
+            frame.location[1] = node_origins[origin][1]
+            frame.width = node_origins[origin][0] - node_origins[origin][2]
+            frame.height = node_origins[origin][1] - node_origins[origin][3] + 100
     
     
     def execute(self, context):
@@ -131,7 +159,8 @@ class MESH_OT_node_processor(bpy.types.Operator):
         self._log_useless_nodes(useless_nodes)
         node_origins = self._get_node_origins(materials)
         self._shift_useless_nodes(useless_nodes, node_origins)
-        self._set_node_attribute(useless_nodes)
+        self._set_node_attribute(useless_nodes, node_origins)
+        self._set_frame(node_origins)
         return {'FINISHED'}
 
 
