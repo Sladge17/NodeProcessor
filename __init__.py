@@ -3,9 +3,11 @@ from enum import Enum
 
 
 
-class CursorOffset(Enum):
-    x = -200
-    y = -200
+class Offsets(Enum):
+    origin_attr_x = -200
+    origin_attr_y = -200
+    origin_shift_first = -100
+    origin_shift_y = -300
 
 
 
@@ -65,7 +67,7 @@ class MESH_OT_node_searcher(bpy.types.Operator):
         return useless_nodes
     
 
-    def _log_useless_nodes(self, useless_nodes:dict) -> None:
+    def _log_useless_nodes(self, useless_nodes:list) -> None:
         for useless_node in useless_nodes:
             print(f"NODE: {useless_node.node.name} of TYPE: {useless_node.node.type} for MATERIAL: {useless_node.material.name}")
 
@@ -73,14 +75,32 @@ class MESH_OT_node_searcher(bpy.types.Operator):
     def _get_node_origins(self, matetials:list) ->dict:
         nodes_origin = {}
         for material in matetials:
-            origin = [float('inf'), float('-inf')]
+            origin = [float('inf'), float('inf')]
             for node in material.node_tree.nodes:
                 origin[0] = min(origin[0], node.location[0])
-                origin[1] = max(origin[1], node.location[1])
+                origin[1] = min(origin[1], node.location[1])
             
             nodes_origin[material.name] = origin
 
         return nodes_origin  
+
+
+    def _shift_useless_nodes(self, useless_nodes:list, node_origins:dict) -> None:
+        is_first = True
+        for useless_node in useless_nodes:
+            if is_first:
+                origin = node_origins[useless_node.material.name]
+                origin[0] += Offsets.origin_shift_first.value
+                origin[1] += Offsets.origin_shift_first.value
+                useless_node.node.location = origin
+                node_origins[useless_node.material.name] = origin
+                is_first = False
+                continue
+
+            origin = node_origins[useless_node.material.name]
+            origin[1] += Offsets.origin_shift_y.value
+            useless_node.node.location = origin
+            node_origins[useless_node.material.name] = origin
 
 
     def _set_node_attribute(self, useless_nodes:dict) -> None:
@@ -89,7 +109,7 @@ class MESH_OT_node_searcher(bpy.types.Operator):
                 continue
 
             cursor = useless_node.node.location.copy()
-            cursor[0] += CursorOffset.x.value
+            cursor[0] += Offsets.origin_attr_x.value
 
             for node_input in useless_node.node.inputs:
                 node_attribute =\
@@ -100,7 +120,7 @@ class MESH_OT_node_searcher(bpy.types.Operator):
                     node_attribute.outputs['Alpha'],
                     node_input,
                 )
-                cursor[1] += CursorOffset.y.value        
+                cursor[1] += Offsets.origin_attr_y.value        
     
     
     def execute(self, context):
@@ -108,6 +128,7 @@ class MESH_OT_node_searcher(bpy.types.Operator):
         useless_nodes = self._get_useless_nodes(materials)
         self._log_useless_nodes(useless_nodes)
         node_origins = self._get_node_origins(materials)
+        self._shift_useless_nodes(useless_nodes, node_origins)
         self._set_node_attribute(useless_nodes)
         return {'FINISHED'}
 
