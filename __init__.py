@@ -1,4 +1,11 @@
 import bpy
+from enum import Enum
+
+
+
+class CursorOffset(Enum):
+    x = -200
+    y = -200
 
 
 
@@ -66,6 +73,28 @@ class MESH_OT_node_searcher(bpy.types.Operator):
     def execute(self, context):
         useless_nodes = self._get_useless_nodes(self._get_materials())
         self._log_useless_nodes(useless_nodes)
+
+
+        for useless_node in useless_nodes:
+            if not len(useless_node.node.inputs):
+                continue
+
+            cursor = useless_node.node.location.copy()
+            cursor[0] += CursorOffset.x.value
+
+            for node_input in useless_node.node.inputs:
+                node_attribute =\
+                    useless_node.material.node_tree.nodes.new(type='ShaderNodeAttribute')
+                node_attribute.location = cursor
+
+                useless_node.material.node_tree.links.new(
+                    node_attribute.outputs['Alpha'],
+                    node_input,
+                )
+                cursor[1] += CursorOffset.y.value
+
+
+
         return {'FINISHED'}
 
 
