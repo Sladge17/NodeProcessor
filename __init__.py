@@ -38,7 +38,7 @@ class MESH_OT_node_searcher(bpy.types.Operator):
             materials.append(material)
 
         return materials
-        
+
     
     def _is_useful_node(self, node) -> bool:
         node_useful = False
@@ -70,6 +70,19 @@ class MESH_OT_node_searcher(bpy.types.Operator):
             print(f"NODE: {useless_node.node.name} of TYPE: {useless_node.node.type} for MATERIAL: {useless_node.material.name}")
 
 
+    def _get_node_origins(self, matetials:list) ->dict:
+        nodes_origin = {}
+        for material in matetials:
+            origin = [float('inf'), float('-inf')]
+            for node in material.node_tree.nodes:
+                origin[0] = min(origin[0], node.location[0])
+                origin[1] = max(origin[1], node.location[1])
+            
+            nodes_origin[material.name] = origin
+
+        return nodes_origin  
+
+
     def _set_node_attribute(self, useless_nodes:dict) -> None:
         for useless_node in useless_nodes:
             if not len(useless_node.node.inputs):
@@ -91,8 +104,10 @@ class MESH_OT_node_searcher(bpy.types.Operator):
     
     
     def execute(self, context):
-        useless_nodes = self._get_useless_nodes(self._get_materials())
+        materials = self._get_materials()
+        useless_nodes = self._get_useless_nodes(materials)
         self._log_useless_nodes(useless_nodes)
+        node_origins = self._get_node_origins(materials)
         self._set_node_attribute(useless_nodes)
         return {'FINISHED'}
 
