@@ -1,20 +1,37 @@
 import bpy
-from enum import Enum
 
 
 
-class Offsets(Enum):
-    origin_attr_x = -200
-    origin_attr_y = -200
-    origin_shift_first = -100
-    origin_shift_y = -300
+class MaterialData:
+    def __init__(self, material) -> None:
+        self._material = material
+        self._useful_nodes = []
+        self._useless_nodes = []
 
 
+    def _set_useful_node(self, parent_node) -> None:
+        for node_input in parent_node.inputs:
+            if node_input.is_linked:
+                self._useful_nodes.append(node_input.links[0].from_node)
+                self._set_useful_node(node_input.links[0].from_node)
 
-class UselessNode:
-    def __init__(self, material, node):
-        self.material = material
-        self.node = node
+
+    def _set_useful_nodes(self) -> None:
+        self._set_useful_node(self._material.node_tree.nodes['Material Output'])
+
+
+    def _set_useless_nodes(self) -> None:
+        for node in self._material.node_tree.nodes:
+            if node.name == 'Material Output':
+                continue
+
+            if not node in self._useful_nodes:
+                self._useless_nodes.append(node)
+
+
+    def sort_material_nodes(self):
+        self._set_useful_nodes()
+        self._set_useless_nodes()
 
 
 
@@ -27,139 +44,36 @@ class MESH_OT_node_processor(bpy.types.Operator):
 
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, context) -> bool:
         return True
-
-
-    def _get_materials(self):
-        materials = []
-        for material in bpy.data.materials:
+    
+    
+    def _get_materials_data(self) -> list:
+        materials_bpy = bpy.data.materials
+        materials = [None] * (len(materials_bpy) - 1)
+        i = 0
+        for material in materials_bpy:
             if material.name == 'Dots Stroke':
                 continue
-            
-            materials.append(material)
 
-        return materials
+            materials[i] = MaterialData(material)
+            i += 1
 
-    
-    def _is_useful_node(self, node) -> bool:
-        node_useful = False
-        for output in node.outputs:
-            if output.is_linked:
-                node_useful = True
-                break
-
-        return node_useful
-    
-    
-    def _get_useless_nodes(self, matetials:list) -> list:
-        useless_nodes = []
-        for material in matetials:
-            for node in material.node_tree.nodes:
-                if node.name == 'Material Output':
-                    continue
-                
-                if self._is_useful_node(node):
-                    continue
-
-                useless_nodes.append(UselessNode(material, node))
-        
-        return useless_nodes
+        return materials    
     
 
-    def _log_useless_nodes(self, useless_nodes:list) -> None:
-        for useless_node in useless_nodes:
-            print(f"NODE: {useless_node.node.name} of TYPE: {useless_node.node.type} for MATERIAL: {useless_node.material.name}")
+    def _sort_materials_nodes(self, materials_data):
+        for material_data in materials_data:
+            material_data.sort_material_nodes()
 
 
-    def _get_node_origins(self, matetials:list) ->dict:
-        nodes_origin = {}
-        for material in matetials:
-            origin = [float('inf'), float('inf')]
-            for node in material.node_tree.nodes:
-                origin[0] = min(origin[0], node.location[0])
-                origin[1] = min(origin[1], node.location[1] - node.height)
-            
-            nodes_origin[material.name] = origin
-
-        return nodes_origin  
-
-
-    def _shift_useless_nodes(self, useless_nodes:list, node_origins:dict) -> None:
-        is_first = True
-        for useless_node in useless_nodes:
-            if is_first:
-                origin = node_origins[useless_node.material.name].copy()
-                origin[0] += Offsets.origin_shift_first.value
-                origin[1] += Offsets.origin_shift_first.value
-                useless_node.node.location = (
-                    origin[0] - useless_node.node.width,
-                    origin[1]
-                )
-                is_first = False
-                continue
-
-            origin[1] += Offsets.origin_shift_y.value
-            useless_node.node.location = (
-                origin[0] - useless_node.node.width,
-                origin[1]
-            )
-
-
-    def _set_node_attribute(self, useless_nodes:list, node_origins: dict) -> None:
-        for origin in node_origins:
-            node_origins[origin] += [0, 0]
-
-        for useless_node in useless_nodes:
-            if not len(useless_node.node.inputs):
-                node_origins[useless_node.material.name][2] =\
-                    useless_node.node.location[0] - useless_node.node.width
-                node_origins[useless_node.material.name][3] =\
-                    useless_node.node.location[1] - useless_node.node.height
-                continue
-
-            origin = useless_node.node.location.copy()
-            origin[0] += Offsets.origin_attr_x.value
-
-            for node_input in useless_node.node.inputs:
-                node_attribute =\
-                    useless_node.material.node_tree.nodes.new(type='ShaderNodeAttribute')
-                node_attribute.location = origin
-
-                useless_node.material.node_tree.links.new(
-                    node_attribute.outputs['Alpha'],
-                    node_input,
-                )
-                node_origins[useless_node.material.name][2] =\
-                    node_attribute.location[0] - node_attribute.width
-                node_origins[useless_node.material.name][3] =\
-                    node_attribute.location[1] - node_attribute.height
-                origin[1] += Offsets.origin_attr_y.value
-    
-    
-    def _set_frame(self, node_origins: dict) -> None:
-        for origin in node_origins:
-            if not node_origins[origin][2]:
-                continue
-
-            frame = bpy.data.materials[origin].node_tree.nodes.new(type='NodeFrame')
-            frame.location[0] = node_origins[origin][2]
-            frame.location[1] = node_origins[origin][1]
-            frame.width = node_origins[origin][0] - node_origins[origin][2]
-            frame.height = node_origins[origin][1] - node_origins[origin][3] + 100
-    
-    
     def execute(self, context):
-        materials = self._get_materials()
-        useless_nodes = self._get_useless_nodes(materials)
-        if not useless_nodes:
-            print("MESSAGE: Useless nodes not exist")
-            return {'FINISHED'}
-        
-        self._log_useless_nodes(useless_nodes)
-        node_origins = self._get_node_origins(materials)
-        self._shift_useless_nodes(useless_nodes, node_origins)
-        self._set_node_attribute(useless_nodes, node_origins)
+        materials_data = self._get_materials_data()
+        self._sort_materials_nodes(materials_data)
+
+        print(materials_data[0]._useless_nodes)
+        print(materials_data[1]._useless_nodes)
+
         return {'FINISHED'}
 
 
