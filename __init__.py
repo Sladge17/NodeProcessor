@@ -1,6 +1,11 @@
 import bpy
 
 
+OFFSET_OUTER_X = 200
+
+OFFSET_INNER_X = 100
+OFFSET_INNER_Y = 100
+
 
 class MaterialExecutor:
     def __init__(self, material) -> None:
@@ -11,10 +16,10 @@ class MaterialExecutor:
 
 
     def _set_useful_node(self, parent_node) -> None:
-        for node_input in parent_node.inputs:
-            if node_input.is_linked:
-                self._useful_nodes_list.append(node_input.links[0].from_node)
-                self._set_useful_node(node_input.links[0].from_node)
+        for inpt in parent_node.inputs:
+            if inpt.is_linked:
+                self._useful_nodes_list.append(inpt.links[0].from_node)
+                self._set_useful_node(inpt.links[0].from_node)
 
 
     def _set_useful_nodes_list(self) -> None:
@@ -30,7 +35,7 @@ class MaterialExecutor:
                 self._useless_nodes_list.append(node)
 
 
-    def _sort_nodes(self):
+    def _sort_nodes(self) -> None:
         self._set_useful_nodes_list()
         self._set_useless_nodes_list()
     
@@ -43,14 +48,88 @@ class MaterialExecutor:
                 max(self._useful_nodes_border[1], node.location[1])
 
 
+    def _get_linked_output(self, node):
+        for output in node.outputs:
+            if output.is_linked:
+                return output
+            
+        return None
+    
+
+    def _get_first_node(self, node):
+        output = self._get_linked_output(node)
+        while output:
+            node = output.links[0].to_node
+            output = self._get_linked_output(node)
+        
+        return node
+    
+    
+    def _shift_useless_node(self, inpt, location, shifted_nodes) -> None:
+        node = inpt.links[0].from_node
+        self._process_useless_node(
+            node,
+            [
+                location[0] - OFFSET_INNER_X - node.width,
+                location[1],
+            ],
+            shifted_nodes,
+        )
+        location[1] -= node.height + OFFSET_INNER_Y
+
+
+    def _set_node_attribute(self, inpt, location) -> None:
+        node =\
+            self._material.node_tree.nodes.new(type='ShaderNodeAttribute')
+        
+        node.location = (
+            location[0] - OFFSET_INNER_X - node.width,
+            location[1],
+        )
+        location[1] -= node.height + OFFSET_INNER_Y
+
+        self._material.node_tree.links.new(
+            node.outputs['Alpha'],
+            inpt,
+        )        
+
+
+    def _process_useless_node(self, node, location, shifted_nodes) -> None:
+            node.location = location
+            shifted_nodes.append(node)
+
+            for inpt in node.inputs:
+                if inpt.is_linked:
+                    self._shift_useless_node(inpt, location, shifted_nodes)
+                    continue
+
+                self._set_node_attribute(inpt, location)
+
+    
+    def _process_useless_nodes(self) -> None:
+        shifted_nodes = []
+        not_shifted_nodes = set(self._useless_nodes_list)
+        
+        while not_shifted_nodes:
+            for node in not_shifted_nodes:
+                node = self._get_first_node(node)
+                self._process_useless_node(
+                    node,
+                    [
+                        self._useful_nodes_border[0] - OFFSET_OUTER_X - node.width,
+                        self._useful_nodes_border[1],
+                    ],
+                    shifted_nodes,
+                )
+                self._useful_nodes_border[1] -= node.height + OFFSET_INNER_Y
+                not_shifted_nodes -= set(shifted_nodes)
+                break
+
+
     def process_material_nodes(self) -> None:
         self._sort_nodes()
         self._set_useful_nodes_border()
-
-        try:
-           self._useless_nodes_list[0].location = self._useful_nodes_border
-        except:
-            pass
+        self._process_useless_nodes()
 
 
 
