@@ -13,6 +13,7 @@ class MaterialExecutor:
         self._useful_nodes_list = []
         self._useless_nodes_list = []
         self._useful_nodes_border = [float('inf'), float('-inf')]
+        self._location_y_min = float('inf')
 
 
     def _set_useful_node(self, parent_node) -> None:
@@ -76,6 +77,7 @@ class MaterialExecutor:
             shifted_nodes,
         )
         location[1] -= node.height + OFFSET_INNER_Y
+        self._location_y_min = min(self._location_y_min, location[1])
 
 
     def _set_node_attribute(self, inpt, location) -> None:
@@ -86,12 +88,12 @@ class MaterialExecutor:
             location[0] - OFFSET_INNER_X - node.width,
             location[1],
         )
-        location[1] -= node.height + OFFSET_INNER_Y
-
         self._material.node_tree.links.new(
             node.outputs['Alpha'],
             inpt,
-        )        
+        )
+        location[1] -= node.height + OFFSET_INNER_Y
+        self._location_y_min = min(self._location_y_min, location[1])
 
 
     def _process_useless_node(self, node, location, shifted_nodes) -> None:
@@ -121,7 +123,10 @@ class MaterialExecutor:
                     ],
                     shifted_nodes,
                 )
-                self._useful_nodes_border[1] -= node.height + OFFSET_INNER_Y
+                self._useful_nodes_border[1] = min(
+                    self._useful_nodes_border[1] - node.height - OFFSET_INNER_Y,
+                    self._location_y_min,
+                )
                 not_shifted_nodes -= set(shifted_nodes)
                 break
 
