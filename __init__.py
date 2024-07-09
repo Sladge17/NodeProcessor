@@ -6,6 +6,9 @@ OFFSET_OUTER_X = 200
 OFFSET_INNER_X = 100
 OFFSET_INNER_Y = 100
 
+USELESS_NODES = "Useless nodes"
+
+
 
 class MaterialExecutor:
     def __init__(self, material) -> None:
@@ -14,6 +17,7 @@ class MaterialExecutor:
         self._useless_nodes_list = []
         self._useful_nodes_border = [float('inf'), float('-inf')]
         self._location_y_min = float('inf')
+        self._nodes_attribute_list = []
 
 
     def _set_useful_node(self, parent_node) -> None:
@@ -83,6 +87,7 @@ class MaterialExecutor:
     def _set_node_attribute(self, inpt, location) -> None:
         node =\
             self._material.node_tree.nodes.new(type='ShaderNodeAttribute')
+        self._nodes_attribute_list.append(node)
         
         node.location = (
             location[0] - OFFSET_INNER_X - node.width,
@@ -131,10 +136,26 @@ class MaterialExecutor:
                 break
 
 
+    def _set_node_frame(self) -> None:
+        if not self._useless_nodes_list:
+            return
+
+        node_frame =\
+            self._material.node_tree.nodes.new(type='NodeFrame')
+        node_frame.label = USELESS_NODES
+
+        for node in self._useless_nodes_list:
+            node.parent = node_frame
+
+        for node in self._nodes_attribute_list:
+            node.parent = node_frame
+    
+    
     def process_material_nodes(self) -> None:
         self._sort_nodes()
         self._set_useful_nodes_border()
         self._process_useless_nodes()
+        self._set_node_frame()
 
 
 
