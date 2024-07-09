@@ -10,9 +10,30 @@ USELESS_NODES = "Useless nodes"
 
 
 
+class Logger:
+
+    @classmethod
+    def node_material_output_not_exist(cls, material_name:str) -> None:
+        print(f"MATERIAL \"{material_name}\" does not have NODE \"Material Output\"")
+
+
+    @classmethod
+    def useless_nodes_not_exist(cls, material_name:str) -> None:
+        print(f"MATERIAL \"{material_name}\" does not have useless nodes")
+
+
+    @classmethod
+    def useless_nodes_list(cls, material_name:str, nodes_name:iter, nodes_type:iter) -> None:
+        print(f"MATERIAL \"{material_name}\" has useless nodes:")
+        for name, type in zip(nodes_name, nodes_type):
+            print(f" - NODE \"{name}\" of TYPE \"{type}\"")
+
+
+
 class MaterialExecutor:
     def __init__(self, material) -> None:
         self._material = material
+        self._valid_material = True
         self._useful_nodes_list = []
         self._useless_nodes_list = []
         self._useful_nodes_border = [float('inf'), float('-inf')]
@@ -28,7 +49,14 @@ class MaterialExecutor:
 
 
     def _set_useful_nodes_list(self) -> None:
-        self._set_useful_node(self._material.node_tree.nodes['Material Output'])
+        try:
+            node_material_output = self._material.node_tree.nodes['Material Output']
+        except KeyError:
+            self._valid_material = False
+            return
+        
+        self._set_useful_node(node_material_output)
+
 
 
     def _set_useless_nodes_list(self) -> None:
@@ -160,9 +188,28 @@ class MaterialExecutor:
     def process_material_nodes(self) -> None:
         self._remove_node_frame()
         self._sort_nodes()
+        if not self._valid_material or not self._useless_nodes_list:
+            return
+        
         self._set_useful_nodes_border()
         self._process_useless_nodes()
         self._set_node_frame()
+
+
+    def log_material_info(self) -> None:
+        if not self._valid_material:
+            Logger.node_material_output_not_exist(self._material.name)
+            return
+        
+        if not self._useless_nodes_list:
+            Logger.useless_nodes_not_exist(self._material.name)
+            return
+        
+        Logger.useless_nodes_list(
+            self._material.name,
+            map(lambda node: node.name, self._useless_nodes_list),
+            map(lambda node: node.type, self._useless_nodes_list),
+        )
 
 
 
@@ -198,13 +245,15 @@ class MESH_OT_node_processor(bpy.types.Operator):
             material_executor.process_material_nodes()
 
 
+    def _log_materials_info(self, material_holder):
+        for material_executor in material_holder:
+            material_executor.log_material_info()
+
+
     def execute(self, context):
         materials_holder = self._get_materials_holder()
         self._process_materials_nodes(materials_holder)
-
-        print(materials_holder[0]._useless_nodes_list)
-        print(materials_holder[1]._useless_nodes_list)
-
+        self._log_materials_info(materials_holder)
         return {'FINISHED'}
 
 
@@ -242,7 +291,7 @@ def unregister():
 bl_info = {
     "name": "Node Processor",
     "author": "Sosov Maxim",
-    "version": (1, 0),
+    "version": (1, 1),
     "blender": (3, 6, 0),
     "category": "",
     "location": "VIEW_3D > UI > MaterialTools > NodeProcessor",
