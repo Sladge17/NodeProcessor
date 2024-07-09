@@ -149,9 +149,16 @@ class MaterialExecutor:
 
         for node in self._nodes_attribute_list:
             node.parent = node_frame
+
+
+    def _remove_node_frame(self) -> None:
+        for node in self._material.node_tree.nodes:
+            if node.type == 'FRAME' and node.label == USELESS_NODES:
+                self._material.node_tree.nodes.remove(node)
     
     
     def process_material_nodes(self) -> None:
+        self._remove_node_frame()
         self._sort_nodes()
         self._set_useful_nodes_border()
         self._process_useless_nodes()
