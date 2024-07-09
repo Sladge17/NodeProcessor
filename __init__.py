@@ -35,7 +35,7 @@ class MaterialExecutor:
         self._set_useless_nodes_list()
     
     
-    def _set_useful_nodes_corner_lb(self) -> None:
+    def _set_useful_nodes_border(self) -> None:
         for node in self._useful_nodes_list:
             self._useful_nodes_border[0] =\
                 min(self._useful_nodes_border[0], node.location[0])
@@ -43,9 +43,9 @@ class MaterialExecutor:
                 max(self._useful_nodes_border[1], node.location[1])
 
 
-    def setup_material_nodes(self) -> None:
+    def process_material_nodes(self) -> None:
         self._sort_nodes()
-        self._set_useful_nodes_corner_lb()
+        self._set_useful_nodes_border()
 
         try:
            self._useless_nodes_list[0].location = self._useful_nodes_border
@@ -81,14 +81,14 @@ class MESH_OT_node_processor(bpy.types.Operator):
         return materials    
     
 
-    def _process_materials(self, materials_data):
-        for material_data in materials_data:
-            material_data.setup_material_nodes()
+    def _process_materials_nodes(self, material_holder):
+        for material_executor in material_holder:
+            material_executor.process_material_nodes()
 
 
     def execute(self, context):
         materials_holder = self._get_materials_holder()
-        self._process_materials(materials_holder)
+        self._process_materials_nodes(materials_holder)
 
         print(materials_holder[0]._useless_nodes_list)
         print(materials_holder[1]._useless_nodes_list)
