@@ -2,36 +2,55 @@ import bpy
 
 
 
-class MaterialData:
+class MaterialExecutor:
     def __init__(self, material) -> None:
         self._material = material
-        self._useful_nodes = []
-        self._useless_nodes = []
+        self._useful_nodes_list = []
+        self._useless_nodes_list = []
+        self._useful_nodes_border = [float('inf'), float('-inf')]
 
 
     def _set_useful_node(self, parent_node) -> None:
         for node_input in parent_node.inputs:
             if node_input.is_linked:
-                self._useful_nodes.append(node_input.links[0].from_node)
+                self._useful_nodes_list.append(node_input.links[0].from_node)
                 self._set_useful_node(node_input.links[0].from_node)
 
 
-    def _set_useful_nodes(self) -> None:
+    def _set_useful_nodes_list(self) -> None:
         self._set_useful_node(self._material.node_tree.nodes['Material Output'])
 
 
-    def _set_useless_nodes(self) -> None:
+    def _set_useless_nodes_list(self) -> None:
         for node in self._material.node_tree.nodes:
             if node.name == 'Material Output':
                 continue
 
-            if not node in self._useful_nodes:
-                self._useless_nodes.append(node)
+            if not node in self._useful_nodes_list:
+                self._useless_nodes_list.append(node)
 
 
-    def sort_material_nodes(self):
-        self._set_useful_nodes()
-        self._set_useless_nodes()
+    def _sort_nodes(self):
+        self._set_useful_nodes_list()
+        self._set_useless_nodes_list()
+    
+    
+    def _set_useful_nodes_corner_lb(self) -> None:
+        for node in self._useful_nodes_list:
+            self._useful_nodes_border[0] =\
+                min(self._useful_nodes_border[0], node.location[0])
+            self._useful_nodes_border[1] =\
+                max(self._useful_nodes_border[1], node.location[1])
+
+
+    def setup_material_nodes(self) -> None:
+        self._sort_nodes()
+        self._set_useful_nodes_corner_lb()
+
+        try:
+           self._useless_nodes_list[0].location = self._useful_nodes_border
+        except:
+            pass
 
 
 
@@ -48,7 +67,7 @@ class MESH_OT_node_processor(bpy.types.Operator):
         return True
     
     
-    def _get_materials_data(self) -> list:
+    def _get_materials_holder(self) -> list:
         materials_bpy = bpy.data.materials
         materials = [None] * (len(materials_bpy) - 1)
         i = 0
@@ -56,23 +75,23 @@ class MESH_OT_node_processor(bpy.types.Operator):
             if material.name == 'Dots Stroke':
                 continue
 
-            materials[i] = MaterialData(material)
+            materials[i] = MaterialExecutor(material)
             i += 1
 
         return materials    
     
 
-    def _sort_materials_nodes(self, materials_data):
+    def _process_materials(self, materials_data):
         for material_data in materials_data:
-            material_data.sort_material_nodes()
+            material_data.setup_material_nodes()
 
 
     def execute(self, context):
-        materials_data = self._get_materials_data()
-        self._sort_materials_nodes(materials_data)
+        materials_holder = self._get_materials_holder()
+        self._process_materials(materials_holder)
 
-        print(materials_data[0]._useless_nodes)
-        print(materials_data[1]._useless_nodes)
+        print(materials_holder[0]._useless_nodes_list)
+        print(materials_holder[1]._useless_nodes_list)
 
         return {'FINISHED'}
 
