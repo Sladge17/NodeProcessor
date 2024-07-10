@@ -344,7 +344,6 @@ class VIEW3D_PT_node_processor(bpy.types.Panel):
         column.operator(
             'material.node_processor',
             text="Process useless nodes",
-            icon='FILE_TEXT',
         )
         column.scale_y = 1.4
 
