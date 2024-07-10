@@ -9,11 +9,17 @@
 Для использования аддона NodeProcessor, нужно нажать клавишу "Process useless nodes", находясь на панеле аддона. При необходимости работы с логами аддона, должна существовать консоль ассоциированная с запущенной программой "blender", в которой выполняется работа с аддоном.
 
 # Пример использования
-Иерархия материала до применения аддона
-![alt text](https://github.com/Sladge17/NodeProcessor/blob/master/Sceenshots/before.png)
+Структура материала до применения аддона
+![alt text](https://github.com/Sladge17/NodeProcessor/blob/master/Sceenshots/Screenshot_01.png)
 
-Иерархия материала после применения аддона
-![alt text](https://github.com/Sladge17/NodeProcessor/blob/master/Sceenshots/after.png)
+Структура материала после применения аддона
+![alt text](https://github.com/Sladge17/NodeProcessor/blob/master/Sceenshots/Screenshot_02.png)
+
+Структура группы после применения аддона
+![alt text](https://github.com/Sladge17/NodeProcessor/blob/master/Sceenshots/Screenshot_03.png)
+
+Структура материала после редактирования материла, после применения аддона
+![alt text](https://github.com/Sladge17/NodeProcessor/blob/master/Sceenshots/Screenshot_04.png)
 
 # Техническая аннотация
 Аддон NodeProcessor разработан и протестирован с использованием ОС Ubuntu 20.04 для Blender 3.6
