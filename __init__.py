@@ -92,7 +92,7 @@ def register():
 
 
 def unregister():
-    bpy.utils.register_class(VIEW3D_PT_node_processor)
+    bpy.utils.unregister_class(VIEW3D_PT_node_processor)
     bpy.utils.unregister_class(MESH_OT_node_processor)
 
 
