@@ -30,15 +30,22 @@ class Logger:
 
 
 
-class MaterialExecutor:
-    def __init__(self, material) -> None:
-        self._material = material
-        self._valid_material = True
+class Executor:
+    def __init__(self, nodes, output_node_name) -> None:
+        self._nodes = nodes
+        self._output_node_name = output_node_name
+        self._valid_instance = True
         self._useful_nodes_list = []
         self._useless_nodes_list = []
         self._useful_nodes_border = [float('inf'), float('-inf')]
         self._location_y_min = float('inf')
         self._nodes_attribute_list = []
+
+
+    def _remove_node_frame(self) -> None:
+        for node in self._nodes:
+            if node.type == 'FRAME' and node.label == USELESS_NODES:
+                self._nodes.remove(node)
 
 
     def _set_useful_node(self, parent_node) -> None:
@@ -50,18 +57,17 @@ class MaterialExecutor:
 
     def _set_useful_nodes_list(self) -> None:
         try:
-            node_material_output = self._material.node_tree.nodes['Material Output']
+            node_output = self._nodes[self._output_node_name]
         except KeyError:
-            self._valid_material = False
+            self._valid_instance = False
             return
         
-        self._set_useful_node(node_material_output)
-
+        self._set_useful_node(node_output)
 
 
     def _set_useless_nodes_list(self) -> None:
-        for node in self._material.node_tree.nodes:
-            if node.name == 'Material Output':
+        for node in self._nodes:
+            if node.name == self._output_node_name:
                 continue
 
             if not node in self._useful_nodes_list:
@@ -71,14 +77,83 @@ class MaterialExecutor:
     def _sort_nodes(self) -> None:
         self._set_useful_nodes_list()
         self._set_useless_nodes_list()
-    
-    
+
+
     def _set_useful_nodes_border(self) -> None:
         for node in self._useful_nodes_list:
             self._useful_nodes_border[0] =\
                 min(self._useful_nodes_border[0], node.location[0])
             self._useful_nodes_border[1] =\
                 max(self._useful_nodes_border[1], node.location[1])
+    
+    
+    # def process_nodes(self) -> None:
+    #     self._remove_node_frame()
+    #     self._sort_nodes()
+    #     if not self._valid_instance or not self._useless_nodes_list:
+    #         return
+        
+    #     self._set_useful_nodes_border()
+    #     self._process_useless_nodes()
+    #     self._set_node_frame()
+
+
+
+class GroupExecutor(Executor):
+    def __init__(self, group) -> None:
+        super().__init__(group.nodes, 'Group Output')
+        self._group = group
+        self._materials =\
+            bpy.data.user_map(subset=bpy.data.node_groups)\
+            [bpy.data.node_groups[self._group.name]]
+        
+
+
+
+class MaterialExecutor(Executor):
+    def __init__(self, material) -> None:
+        super().__init__(material.node_tree.nodes, 'Material Output')
+        self._material = material
+
+
+    # def _set_useful_node(self, parent_node) -> None:
+    #     for inpt in parent_node.inputs:
+    #         if inpt.is_linked:
+    #             self._useful_nodes_list.append(inpt.links[0].from_node)
+    #             self._set_useful_node(inpt.links[0].from_node)
+
+
+    # def _set_useful_nodes_list(self) -> None:
+    #     try:
+    #         node_material_output = self._material.node_tree.nodes['Material Output']
+    #     except KeyError:
+    #         self._valid_material = False
+    #         return
+        
+    #     self._set_useful_node(node_material_output)
+
+
+
+    # def _set_useless_nodes_list(self) -> None:
+    #     for node in self._material.node_tree.nodes:
+    #         if node.name == 'Material Output':
+    #             continue
+
+    #         if not node in self._useful_nodes_list:
+    #             self._useless_nodes_list.append(node)
+
+
+    # def _sort_nodes(self) -> None:
+    #     self._set_useful_nodes_list('Material Output')
+    #     self._set_useless_nodes_list('Material Output')
+    
+    
+    # def _set_useful_nodes_border(self) -> None:
+    #     for node in self._useful_nodes_list:
+    #         self._useful_nodes_border[0] =\
+    #             min(self._useful_nodes_border[0], node.location[0])
+    #         self._useful_nodes_border[1] =\
+    #             max(self._useful_nodes_border[1], node.location[1])
 
 
     def _get_linked_output(self, node):
@@ -179,16 +254,16 @@ class MaterialExecutor:
             node.parent = node_frame
 
 
-    def _remove_node_frame(self) -> None:
-        for node in self._material.node_tree.nodes:
-            if node.type == 'FRAME' and node.label == USELESS_NODES:
-                self._material.node_tree.nodes.remove(node)
+    # def _remove_node_frame(self) -> None:
+    #     for node in self._material.node_tree.nodes:
+    #         if node.type == 'FRAME' and node.label == USELESS_NODES:
+    #             self._material.node_tree.nodes.remove(node)
     
     
-    def process_material_nodes(self) -> None:
+    def process_nodes(self) -> None:
         self._remove_node_frame()
         self._sort_nodes()
-        if not self._valid_material or not self._useless_nodes_list:
+        if not self._valid_instance or not self._useless_nodes_list:
             return
         
         self._set_useful_nodes_border()
@@ -197,7 +272,7 @@ class MaterialExecutor:
 
 
     def log_material_info(self) -> None:
-        if not self._valid_material:
+        if not self._valid_instance:
             Logger.node_material_output_not_exist(self._material.name)
             return
         
@@ -228,21 +303,21 @@ class MESH_OT_node_processor(bpy.types.Operator):
     
     def _get_materials_holder(self) -> list:
         materials_bpy = bpy.data.materials
-        materials = [None] * (len(materials_bpy) - 1)
+        materials_holder = [None] * (len(materials_bpy) - 1)
         i = 0
         for material in materials_bpy:
             if material.name == 'Dots Stroke':
                 continue
 
-            materials[i] = MaterialExecutor(material)
+            materials_holder[i] = MaterialExecutor(material)
             i += 1
 
-        return materials    
+        return materials_holder    
     
 
-    def _process_materials_nodes(self, material_holder):
-        for material_executor in material_holder:
-            material_executor.process_material_nodes()
+    def _process_nodes(self, holder):
+        for executor in holder:
+            executor.process_nodes()
 
 
     def _log_materials_info(self, material_holder):
@@ -250,10 +325,21 @@ class MESH_OT_node_processor(bpy.types.Operator):
             material_executor.log_material_info()
 
 
+    def _get_groups_holder(self) -> list:
+        groups_bpy = bpy.data.node_groups
+        groups_holder = [None] * len(groups_bpy)
+        for i in range(len(groups_bpy)):
+            groups_holder[i] = GroupExecutor(groups_bpy[i])
+
+        return groups_holder
+
+
     def execute(self, context):
         materials_holder = self._get_materials_holder()
-        self._process_materials_nodes(materials_holder)
+        self._process_nodes(materials_holder)
         self._log_materials_info(materials_holder)
+        
+        # group_holder = self._get_groups_holder()
         return {'FINISHED'}
 
 
