@@ -13,25 +13,49 @@ USELESS_NODES = "Useless nodes"
 class Logger:
 
     @classmethod
-    def node_material_output_not_exist(cls, material_name:str) -> None:
-        print(f"MATERIAL \"{material_name}\" does not have NODE \"Material Output\"")
+    def node_output_not_exist(cls, type:str, name:str) -> None:
+        print(f"{type.upper()} \"{name}\" does not have NODE \"Material Output\"")
 
 
     @classmethod
-    def useless_nodes_not_exist(cls, material_name:str) -> None:
-        print(f"MATERIAL \"{material_name}\" does not have useless nodes")
+    def useless_nodes_not_exist(cls, type:str, name:str) -> None:
+        print(f"{type.upper()} \"{name}\" does not have useless nodes")
 
 
     @classmethod
-    def useless_nodes_list(cls, material_name:str, nodes_name:iter, nodes_type:iter) -> None:
-        print(f"MATERIAL \"{material_name}\" has useless nodes:")
-        for name, type in zip(nodes_name, nodes_type):
-            print(f" - NODE \"{name}\" of TYPE \"{type}\"")
+    def useless_nodes_list(cls, type:str, name:str, nodes_name:iter, nodes_type:iter) -> None:
+        print(f"{type.upper()} \"{name}\" has useless nodes:")
+        for node_name, node_type in zip(nodes_name, nodes_type):
+            print(f" - NODE \"{node_name}\" of TYPE \"{node_type}\"")
+
+
+    @classmethod
+    def _materials_in_need(cls, materials:iter) -> None:
+        if  not len(materials):
+            print("(not using in materials)")
+            return
+        
+        if len(materials) == 1:
+            print(f"(using in MATERIAL: \"{materials[0]}\")")
+            return
+        
+        materials = ", ".join(map(lambda material: f"\"{material}\"", materials))
+        print(f"(using in MATERIALS: {materials})")
+
+
+    @classmethod
+    def useless_nodes_list_with_usage(
+        cls, type:str, name:str, nodes_name:iter, nodes_type:iter, materials:iter
+    ) -> None:
+        cls.useless_nodes_list(type, name, nodes_name, nodes_type)
+        cls._materials_in_need(materials)
 
 
 
 class Executor:
-    def __init__(self, material_canvas, output_node_name) -> None:
+    def __init__(self, type, name, material_canvas, output_node_name) -> None:
+        self._type =type
+        self._name = name
         self._material_canvas = material_canvas
         self._output_node_name = output_node_name
         self._valid_instance = True
@@ -196,36 +220,57 @@ class Executor:
         self._set_node_frame()
 
 
+    def log_instance_info(self) -> None:
+        if not self._valid_instance:
+            Logger.node_output_not_exist(self._type, self._name)
+            return
+        
+        if not self._useless_nodes_list:
+            Logger.useless_nodes_not_exist(self._type, self._name)
+            return
+        
+        if self._type == 'material':
+            Logger.useless_nodes_list(
+                self._type,
+                self._name,
+                map(lambda node: node.name, self._useless_nodes_list),
+                map(lambda node: node.type, self._useless_nodes_list),
+            )
+            return
+
+        Logger.useless_nodes_list_with_usage(
+            self._type,
+            self._name,
+            map(lambda node: node.name, self._useless_nodes_list),
+            map(lambda node: node.type, self._useless_nodes_list),
+            self._materials,
+        )
+
+
 
 class GroupExecutor(Executor):
     def __init__(self, group) -> None:
-        super().__init__(group, 'Group Output')
-        self._group = group
-        self._materials =\
+        super().__init__(
+            type="group",
+            name=group.name,
+            material_canvas=group,
+            output_node_name='Group Output'
+        )
+        self._materials = list(map(
+            lambda material: material.name,
             bpy.data.user_map(subset=bpy.data.node_groups)\
-            [bpy.data.node_groups[self._group.name]]
+            [bpy.data.node_groups[self._name]]
+        ))
 
 
 
 class MaterialExecutor(Executor):
     def __init__(self, material) -> None:
-        super().__init__(material.node_tree, 'Material Output')
-        self._material = material
-
-
-    def log_material_info(self) -> None:
-        if not self._valid_instance:
-            Logger.node_material_output_not_exist(self._material.name)
-            return
-        
-        if not self._useless_nodes_list:
-            Logger.useless_nodes_not_exist(self._material.name)
-            return
-        
-        Logger.useless_nodes_list(
-            self._material.name,
-            map(lambda node: node.name, self._useless_nodes_list),
-            map(lambda node: node.type, self._useless_nodes_list),
+        super().__init__(
+            type="material",
+            name=material.name,
+            material_canvas=material.node_tree,
+            output_node_name='Material Output'
         )
 
 
@@ -262,9 +307,9 @@ class MESH_OT_node_processor(bpy.types.Operator):
             executor.process_nodes()
 
 
-    def _log_materials_info(self, material_holder):
-        for material_executor in material_holder:
-            material_executor.log_material_info()
+    def _log_instances_info(self, holder):
+        for executor in holder:
+            executor.log_instance_info()
 
 
     def _get_groups_holder(self) -> list:
@@ -281,8 +326,8 @@ class MESH_OT_node_processor(bpy.types.Operator):
         group_holder = self._get_groups_holder()
         self._process_nodes(materials_holder)
         self._process_nodes(group_holder)
-        self._log_materials_info(materials_holder)
-        
+        self._log_instances_info(materials_holder)
+        self._log_instances_info(group_holder)
         return {'FINISHED'}
 
 
