@@ -31,8 +31,8 @@ class Logger:
 
 
 class Executor:
-    def __init__(self, nodes, output_node_name) -> None:
-        self._nodes = nodes
+    def __init__(self, material_canvas, output_node_name) -> None:
+        self._material_canvas = material_canvas
         self._output_node_name = output_node_name
         self._valid_instance = True
         self._useful_nodes_list = []
@@ -43,9 +43,9 @@ class Executor:
 
 
     def _remove_node_frame(self) -> None:
-        for node in self._nodes:
+        for node in self._material_canvas.nodes:
             if node.type == 'FRAME' and node.label == USELESS_NODES:
-                self._nodes.remove(node)
+                self._material_canvas.nodes.remove(node)
 
 
     def _set_useful_node(self, parent_node) -> None:
@@ -57,7 +57,7 @@ class Executor:
 
     def _set_useful_nodes_list(self) -> None:
         try:
-            node_output = self._nodes[self._output_node_name]
+            node_output = self._material_canvas.nodes[self._output_node_name]
         except KeyError:
             self._valid_instance = False
             return
@@ -66,7 +66,7 @@ class Executor:
 
 
     def _set_useless_nodes_list(self) -> None:
-        for node in self._nodes:
+        for node in self._material_canvas.nodes:
             if node.name == self._output_node_name:
                 continue
 
@@ -87,75 +87,6 @@ class Executor:
                 max(self._useful_nodes_border[1], node.location[1])
     
     
-    # def process_nodes(self) -> None:
-    #     self._remove_node_frame()
-    #     self._sort_nodes()
-    #     if not self._valid_instance or not self._useless_nodes_list:
-    #         return
-        
-    #     self._set_useful_nodes_border()
-    #     self._process_useless_nodes()
-    #     self._set_node_frame()
-
-
-
-class GroupExecutor(Executor):
-    def __init__(self, group) -> None:
-        super().__init__(group.nodes, 'Group Output')
-        self._group = group
-        self._materials =\
-            bpy.data.user_map(subset=bpy.data.node_groups)\
-            [bpy.data.node_groups[self._group.name]]
-        
-
-
-
-class MaterialExecutor(Executor):
-    def __init__(self, material) -> None:
-        super().__init__(material.node_tree.nodes, 'Material Output')
-        self._material = material
-
-
-    # def _set_useful_node(self, parent_node) -> None:
-    #     for inpt in parent_node.inputs:
-    #         if inpt.is_linked:
-    #             self._useful_nodes_list.append(inpt.links[0].from_node)
-    #             self._set_useful_node(inpt.links[0].from_node)
-
-
-    # def _set_useful_nodes_list(self) -> None:
-    #     try:
-    #         node_material_output = self._material.node_tree.nodes['Material Output']
-    #     except KeyError:
-    #         self._valid_material = False
-    #         return
-        
-    #     self._set_useful_node(node_material_output)
-
-
-
-    # def _set_useless_nodes_list(self) -> None:
-    #     for node in self._material.node_tree.nodes:
-    #         if node.name == 'Material Output':
-    #             continue
-
-    #         if not node in self._useful_nodes_list:
-    #             self._useless_nodes_list.append(node)
-
-
-    # def _sort_nodes(self) -> None:
-    #     self._set_useful_nodes_list('Material Output')
-    #     self._set_useless_nodes_list('Material Output')
-    
-    
-    # def _set_useful_nodes_border(self) -> None:
-    #     for node in self._useful_nodes_list:
-    #         self._useful_nodes_border[0] =\
-    #             min(self._useful_nodes_border[0], node.location[0])
-    #         self._useful_nodes_border[1] =\
-    #             max(self._useful_nodes_border[1], node.location[1])
-
-
     def _get_linked_output(self, node):
         for output in node.outputs:
             if output.is_linked:
@@ -189,14 +120,14 @@ class MaterialExecutor(Executor):
 
     def _set_node_attribute(self, inpt, location) -> None:
         node =\
-            self._material.node_tree.nodes.new(type='ShaderNodeAttribute')
+            self._material_canvas.nodes.new(type='ShaderNodeAttribute')
         self._nodes_attribute_list.append(node)
         
         node.location = (
             location[0] - OFFSET_INNER_X - node.width,
             location[1],
         )
-        self._material.node_tree.links.new(
+        self._material_canvas.links.new(
             node.outputs['Alpha'],
             inpt,
         )
@@ -244,7 +175,7 @@ class MaterialExecutor(Executor):
             return
 
         node_frame =\
-            self._material.node_tree.nodes.new(type='NodeFrame')
+            self._material_canvas.nodes.new(type='NodeFrame')
         node_frame.label = USELESS_NODES
 
         for node in self._useless_nodes_list:
@@ -254,12 +185,6 @@ class MaterialExecutor(Executor):
             node.parent = node_frame
 
 
-    # def _remove_node_frame(self) -> None:
-    #     for node in self._material.node_tree.nodes:
-    #         if node.type == 'FRAME' and node.label == USELESS_NODES:
-    #             self._material.node_tree.nodes.remove(node)
-    
-    
     def process_nodes(self) -> None:
         self._remove_node_frame()
         self._sort_nodes()
@@ -269,6 +194,23 @@ class MaterialExecutor(Executor):
         self._set_useful_nodes_border()
         self._process_useless_nodes()
         self._set_node_frame()
+
+
+
+class GroupExecutor(Executor):
+    def __init__(self, group) -> None:
+        super().__init__(group, 'Group Output')
+        self._group = group
+        self._materials =\
+            bpy.data.user_map(subset=bpy.data.node_groups)\
+            [bpy.data.node_groups[self._group.name]]
+
+
+
+class MaterialExecutor(Executor):
+    def __init__(self, material) -> None:
+        super().__init__(material.node_tree, 'Material Output')
+        self._material = material
 
 
     def log_material_info(self) -> None:
@@ -336,10 +278,11 @@ class MESH_OT_node_processor(bpy.types.Operator):
 
     def execute(self, context):
         materials_holder = self._get_materials_holder()
+        group_holder = self._get_groups_holder()
         self._process_nodes(materials_holder)
+        self._process_nodes(group_holder)
         self._log_materials_info(materials_holder)
         
-        # group_holder = self._get_groups_holder()
         return {'FINISHED'}
 
 
