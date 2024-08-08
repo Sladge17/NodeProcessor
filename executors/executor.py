@@ -1,4 +1,4 @@
-from .logger import Logger
+from .loger import Loger
 
 
 
@@ -181,15 +181,15 @@ class Executor:
 
     def log_instance_info(self) -> None:
         if not self._valid_instance:
-            Logger.node_output_not_exist(self._type, self._name)
+            Loger.node_output_not_exist(self._type, self._name)
             return
         
         if not self._useless_nodes_list:
-            Logger.useless_nodes_not_exist(self._type, self._name)
+            Loger.useless_nodes_not_exist(self._type, self._name)
             return
         
         if self._type == 'material':
-            Logger.useless_nodes_list(
+            Loger.useless_nodes_list(
                 self._type,
                 self._name,
                 map(lambda node: node.name, self._useless_nodes_list),
@@ -197,7 +197,7 @@ class Executor:
             )
             return
 
-        Logger.useless_nodes_list_with_usage(
+        Loger.useless_nodes_list_with_usage(
             self._type,
             self._name,
             map(lambda node: node.name, self._useless_nodes_list),

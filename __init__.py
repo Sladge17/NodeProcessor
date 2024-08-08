@@ -1,6 +1,6 @@
 import bpy
 
-from .executors import MaterialExecutor, GroupExecutor
+from executors import MaterialExecutor, GroupExecutor
 
 
 

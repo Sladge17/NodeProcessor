@@ -1,4 +1,4 @@
-class Logger:
+class Loger:
 
     @classmethod
     def node_output_not_exist(cls, type:str, name:str) -> None:
